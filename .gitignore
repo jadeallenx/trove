@@ -5,3 +5,7 @@ rel/trove
 .concrete/DEV_MODE
 deps.plt
 .eunit
+*.o
+*.beam
+*.plt
+erl_crash.dump
