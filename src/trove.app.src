@@ -1,0 +1,15 @@
+%% -*- mode: erlang -*-
+{application, trove,
+ [
+  {description, "Yet another Erlang ETS cache application"},
+  {vsn, git},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  %% uncomment if this is an active application
+  {mod, { trove_app, []}},
+  {env, []}
+ ]}.
+%% vim: set filetype=erlang tabstop=2

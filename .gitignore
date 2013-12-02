@@ -1,0 +1,7 @@
+ebin/*
+*.beam
+deps/*
+rel/trove
+.concrete/DEV_MODE
+deps.plt
+.eunit
