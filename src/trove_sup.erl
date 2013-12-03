@@ -15,11 +15,11 @@ init([]) ->
 
 child_spec_srv(CacheName, Options) when is_atom(CacheName) ->
     {CacheName,
-        {trove_cache, start_link, [CacheName, Options]},
+        {trove_cache_srv, start_link, [CacheName, Options]},
         permanent,
         5000,
         worker,
-        [trove_cache]}.
+        [trove_cache_srv]}.
 
 add_cache(CacheName, Options) ->
     supervisor:start_child(?MODULE, child_spec_srv(CacheName, Options)).
