@@ -9,3 +9,4 @@ deps.plt
 *.beam
 *.plt
 erl_crash.dump
+*.swp

@@ -13,8 +13,7 @@ trove_test_() ->
      [
       {"trove is alive",
        fun() ->
-               %% format is always: expected, actual
-               ?assertEqual(howdy, trove:hello())
+               ?assert(is_integer(trove:default_lookup(foo)))
        end}
       ]}.
 

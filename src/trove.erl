@@ -1,6 +1,13 @@
 -module(trove).
 
--export([hello/0]).
+-export([start/0, default_lookup/1]).
 
-hello() ->
-    howdy.
+start() ->
+    lager:start(),
+    ok.
+
+default_lookup(_Key) ->
+    random:seed(now()),
+    random:uniform(1000).
+
+

@@ -158,4 +158,18 @@ set_timer(per_table) ->
     erlang:send_after(Timeout * 1000, self(), evict);
 set_timer(_) -> ok.
 
+%%% Unit tests
+-ifdef(TEST).
+-compile([export_all]).
+-include_lib("eunit/include/eunit.hrl").
 
+format_kv_test_() ->
+    Key = <<"key">>,
+    Value = 42,
+    [
+        ?_assertMatch(#trove_entry{ key = Key, value = Value, inserted_at = _ }, format_kv({Key, Value}))
+    ].
+
+
+
+-endif.
