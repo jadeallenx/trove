@@ -8,10 +8,10 @@
 -export([init/1]).
 
 start_link() ->
-    supervisor:start_link(?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    {ok, {{one_for_one, 5, 100, []}}}.
+    {ok, {{one_for_one, 5, 100}, []}}.
 
 child_spec_srv(CacheName, Options) when is_atom(CacheName) ->
     {CacheName,

@@ -6,9 +6,9 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  lager
                  ]},
-  %% uncomment if this is an active application
   {mod, { trove_app, []}},
   {env, []}
  ]}.
