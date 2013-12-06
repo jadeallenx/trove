@@ -61,23 +61,21 @@ handle_call({lookup, Key}, _From, State = #state{ tid = Tid } ) ->
 
 %%% Insertion
 handle_call({insert, Key, Value}, _From, State = #state{ tid = Tid, key_count = K, max_keys = Max } ) when Max =:= infinity orelse K =< Max ->
-    I = insert(Tid, Key, Value),
-    {reply, ok, State#state{ key_count = K + I } };
+    insert(Tid, Key, Value),
+    {reply, ok, State#state{ key_count = ets:info(Tid, size) } };
 
 handle_call({insert, List}, _From, State = #state{ tid = Tid, key_count = K, max_keys = Max } ) 
                         when is_list(List) andalso Max =:= infinity orelse K + length(List) < Max ->
     true = ets:insert(Tid, lists:map( fun format_kv/1, List)),
-    {reply, ok, State#state{ key_count = K + length(List)} };
+    {reply, ok, State#state{ key_count = ets:info(Tid, size) } };
 
 %%% Eviction
 handle_call({evict, Key}, _From, State = #state{ tid = Tid }) ->
     true = ets:delete(Tid, Key),
-    {reply, ok, State};
-handle_call(evict, _From, State = #state{ tid = Tid, eviction_fun = {Mod, Func, Arg}, eviction_type = T }) ->
-    [ ets:delete(Tid, Entry#trove_entry.key ) || Entry <- lists:filter(
-        fun(R) -> Mod:Func(Arg ++ [R]) end, ets:tab2list(Tid) ) ],
-    set_timer(T),
-    {reply, ok, State};
+    {reply, ok, State#state{ key_count = ets:info(Tid, size) } };
+handle_call(evict, _From, State = #state{ tid = Tid, eviction_fun = F, eviction_type = T }) ->
+    R = evict(Tid, F, T),
+    {reply, R, State#state{ key_count = ets:info(Tid, size) } };
 
 %%% Info
 handle_call({info, hits}, _From, State = #state{ hits = Hits }) ->
@@ -101,9 +99,9 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(evict, State) ->
-    trove:evict(),
-    {noreply, State};
+handle_info(evict, State = #state{ tid = Tid, eviction_fun = F, eviction_type = T}) ->
+    evict(Tid, F, T),
+    {noreply, State#state{ key_count = ets:info(Tid, size) } };
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -121,27 +119,26 @@ epoch_time() ->
     {Mega, S, _Micro} = os:timestamp(),
     (Mega * 1000000) + S.
 
-handle_miss(Key, State = #state{ tid = Tid, lookup_fun = {M, F, A}, misses = Misses, key_count = K }) ->
+handle_miss(Key, State = #state{ tid = Tid, lookup_fun = {M, F, A}, misses = Misses }) ->
     Start = os:timestamp(),
     Value = M:F(A ++ [Key]),
-    I = insert(Tid, Key, Value),
+    insert(Tid, Key, Value),
     End = os:timestamp(),
     LookupTime = timer:now_diff(End, Start) div 1000,
     %?LOG(debug, "lookup time ~w ms", [LookupTime]),
-    {Value, State#state{ misses = orddict:store(Key, LookupTime, Misses), key_count = K + I }}.
+    {Value, State#state{ misses = orddict:store(Key, LookupTime, Misses), key_count = ets:info(Tid, size)}}.
 
 handle_hit(R = #trove_entry{ key = Key, value = Value }, State = #state{ eviction_type = per_key, 
-        lookup_fun = {Mod, Func, Arg}, eviction_fun = {M, F, _A}, tid = Tid, 
-        key_count = K, hits = Hits }) ->
+        lookup_fun = {Mod, Func, Arg}, eviction_fun = {M, F, A}, tid = Tid, hits = Hits }) ->
     
-    case M:F(R) of
+    case apply(M, F, A ++ [R]) of
         false ->
             ets:update_element(Tid, Key, {#trove_entry.last_lookup_at, epoch_time()}),
             {Value, State#state{ hits = Hits + 1 }};
         true ->
-            V = Mod:Func(Arg ++ [Key]),
-            I = insert(Tid, Key, V),
-            {V, State#state{ key_count = K + I }}
+            V = apply(Mod, Func, Arg ++ [Key]),
+            insert(Tid, Key, V),
+            {V, State#state{ key_count = ets:info(Tid, size) }}
     end;
 handle_hit(#trove_entry{ key = Key, value = Value }, State = #state{ tid = Tid, hits = Hits }) ->
     ets:update_element(Tid, Key, {#trove_entry.last_lookup_at, epoch_time()}),
@@ -160,13 +157,13 @@ set_timer(per_table) ->
 set_timer(_) -> ok.
 
 insert(Tid, Key, Value) ->
-    I = case ets:member(Tid, Key) of
-        true -> 0;
-        false -> 1
-    end,
+    true = ets:insert(Tid, format_kv({Key, Value})).
 
-    true = ets:insert(Tid, format_kv({Key, Value})),
-    I.
+evict(Tid, {M, F, A}, T) ->
+    [ ets:delete(Tid, Entry#trove_entry.key ) || Entry <- lists:filter(
+        fun(R) -> apply(M, F, A ++ [R]) end, ets:tab2list(Tid) ) ],
+    set_timer(T),
+    ok.
 
 %%% Unit tests
 -ifdef(TEST).

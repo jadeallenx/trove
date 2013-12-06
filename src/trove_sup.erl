@@ -2,7 +2,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0, add_cache/2]).
+-export([start_link/0, add_cache/2, destroy/1]).
 
 %% OTP callback
 -export([init/1]).
@@ -24,3 +24,5 @@ child_spec_srv(CacheName, Options) when is_atom(CacheName) ->
 add_cache(CacheName, Options) ->
     supervisor:start_child(?MODULE, child_spec_srv(CacheName, Options)).
 
+destroy(CacheName) ->
+    supervisor:terminate_child(?MODULE, CacheName).
