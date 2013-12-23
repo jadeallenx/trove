@@ -27,9 +27,9 @@
     }).
 
 start_link(CacheName, Options) ->
-    gen_server:start_link({local, CacheName}, ?MODULE, [CacheName, Options], []).
+    gen_server:start_link({local, CacheName}, ?MODULE, {CacheName, Options}, []).
 
-init([CacheName, Options]) ->
+init({CacheName, Options}) ->
     EvictionFun = proplists:get_value(eviction_fun, Options, {trove_eviction, timeout, []}),
     EvictionType = proplists:get_value(eviction_type, Options, per_key),
     LookupFun = proplists:get_value(lookup_fun, Options, {trove, default_lookup, []}),
@@ -119,6 +119,7 @@ epoch_time() ->
     {Mega, S, _Micro} = os:timestamp(),
     (Mega * 1000000) + S.
 
+%%% XXX FIXME: This needs to respect max key size
 handle_miss(Key, State = #state{ tid = Tid, lookup_fun = {M, F, A}, misses = Misses }) ->
     Start = os:timestamp(),
     Value = M:F(A ++ [Key]),
